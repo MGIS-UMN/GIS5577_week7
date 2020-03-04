@@ -1,0 +1,47 @@
+CREATE INDEX cruts_322_us_climate_gist ON cruts_322_us_climate gist(geom);
+
+CREATE INDEX cruts_322_us_climate_gist_26915 ON cruts_322_us_climate gist(ST_transform(geom,26915);
+
+CREATE INDEX cruts_322_us_climate_btree_month_year ON cruts_322_us_climate USING btree(date_part('month', sample_date), date_part('year', sample_date));
+
+with ini as
+(
+select c.tmp, s.name, s.geom as geom, sample_date
+from cruts_322_us_climate c 
+join states s ON ST_intersects(c.geom, s.geom)
+)
+SELECT avg(tmp) as average_tem, name, geom
+FROM ini 
+WHERE date_part('year', sample_date) = 2010 AND date_part('month', sample_date) = 12
+GROUP BY name, geom
+
+-- query was 30 seconds without the gist index
+-- query was 18 seconds with the gist index
+-- query was 2 seconds moving the WHERE clause to the first CTE
+
+
+with ini as
+(
+select c.tmp, s.name, s.geom as geom, sample_date
+from cruts_322_us_climate c 
+join states s ON ST_intersects(c.geom, s.geom)
+WHERE date_part('year', sample_date) = 2010 AND date_part('month', sample_date) = 12
+)
+SELECT avg(tmp) as average_tem, name, geom
+FROM ini 
+
+GROUP BY name, geom
+
+
+raster2pgsql -C -x -I -Y -F -t 250x250 -s 4326 C:\work\GIS5577_week7\geotiffs\glc2000_clipped_nodata.tif glc2000_250 | psql -h 129.114.17.63 -U david -d classroom
+
+-- tile size effects the number of records in the table.
+-- a tile is a record
+-- a tile is a multidimensional raster
+
+
+SELECT r.rid, (ST_ValueCount(r.rast)).* as val_count,
+(ST_ValueCount(r.rast)).count as count_chocula,
+ST_ValueCount(r.rast) as set_of_data
+FROM glc2000_250 r
+WHERE r.rid = 68 or r.rid = 29
